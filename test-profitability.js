@@ -9,13 +9,8 @@ const { HeliusClient } = require('./src/api/helius');
 const { ProfitabilityCalculator } = require('./src/scoring/profitability');
 const { ScoringEngine } = require('./src/scoring/engine');
 
-// Test wallets from our research
+// Test wallets - focused on active trading agents
 const TEST_WALLETS = [
-  {
-    address: 'EKHTbXpsm6YDgJzMkFxNU1LNXeWcUW7Ezf8mjUNQQ4Pa',
-    name: 'Solana Agent Kit Treasury',
-    type: 'DAO Treasury'
-  },
   {
     address: '7gm6BPQrSBaTAYaJheuRevBNXcmKsgbkfBCVSjBnt9aP',
     name: 'Warp Trading Bot',
@@ -25,11 +20,6 @@ const TEST_WALLETS = [
     address: '27G8MtK7VtTcCHkpASjSDdkWWYfoqT6ggEuKidVJidD4',
     name: 'Jupiter Perps',
     type: 'DeFi Protocol'
-  },
-  {
-    address: '86xCnPeV69n6t3DnyGvkKobf9FdN2H9oiVDdaMpo2MMY',
-    name: 'Helius Tutorial',
-    type: 'Example Wallet'
   },
   {
     address: 'GP1TLVRBVfn5RuAZfzqRFA9dTy8EfpE76rbzZ5u2Y1n2',
@@ -66,11 +56,19 @@ async function testProfitability() {
 
         const p = analysis.profitability;
 
-        console.log(`   💰 Portfolio Value: $${p.currentPortfolioValue.toFixed(2)}`);
-        console.log(`   📈 Total Inflows: $${p.totalInflowValue.toFixed(2)}`);
-        console.log(`   📉 Total Outflows: $${p.totalOutflowValue.toFixed(2)}`);
-        console.log(`   💵 Realized PnL: $${p.realizedPnL.toFixed(2)}`);
-        console.log(`   📊 ROI: ${p.roi.toFixed(2)}%`);
+        // Show USD values if available
+        const hasPrices = p.tokenFlows.some(t => t.currentPrice > 0) || p.solFlows.net !== 0;
+        if (hasPrices) {
+          console.log(`   💰 Portfolio Value: $${p.currentPortfolioValue.toFixed(2)}`);
+          console.log(`   📈 Total Inflows: $${p.totalInflowValue.toFixed(2)}`);
+          console.log(`   📉 Total Outflows: $${p.totalOutflowValue.toFixed(2)}`);
+          console.log(`   💵 Realized PnL: $${p.realizedPnL.toFixed(2)}`);
+          console.log(`   📊 ROI: ${p.roi.toFixed(2)}%`);
+        } else {
+          console.log(`   💰 Portfolio Value: N/A (price feed required)`);
+          console.log(`   📈 Token Inflows: ${p.tokenFlows.reduce((s, t) => s + t.in, 0).toFixed(2)} total tokens`);
+          console.log(`   📉 Token Outflows: ${p.tokenFlows.reduce((s, t) => s + t.out, 0).toFixed(2)} total tokens`);
+        }
         console.log(`   🔄 Swap Success: ${p.swapMetrics.swapSuccessRate.toFixed(1)}% (${p.swapMetrics.successfulSwaps}/${p.swapMetrics.swapCount})`);
         console.log(`   🪙 Token Diversity: ${p.tokenDiversity} unique tokens`);
         console.log(`   📋 Transactions: ${p.transactionCount}`);
@@ -80,17 +78,30 @@ async function testProfitability() {
         const perfScore = calc.calculatePerformanceScore(p);
         console.log(`   🎯 Performance Score: ${perfScore}/400`);
 
-        // Show top tokens
-        if (p.tokenFlows.length > 0) {
-          console.log(`   🏆 Top Holdings (by net flow):`);
+        // Show top tokens (priced only)
+        const pricedTokens = p.tokenFlows.filter(t => t.currentPrice > 0);
+        if (pricedTokens.length > 0) {
+          console.log(`   🏆 Top Holdings (with USD value):`);
+          const sorted = pricedTokens
+            .sort((a, b) => Math.abs(b.net * b.currentPrice) - Math.abs(a.net * a.currentPrice))
+            .slice(0, 5);
+          
+          sorted.forEach(tf => {
+            const value = tf.net * tf.currentPrice;
+            const symbol = tf.mint === 'So11111111111111111111111111111111111111112' 
+              ? 'SOL    ' 
+              : tf.mint.slice(0, 4) + '...' + tf.mint.slice(-4);
+            console.log(`      • ${symbol}: ${tf.net.toFixed(4)} tokens @ $${tf.currentPrice.toFixed(4)} = $${value.toFixed(2)}`);
+          });
+        } else if (p.tokenFlows.length > 0) {
+          console.log(`   🏆 Top Holdings (no prices available from Jupiter):`);
           const sorted = p.tokenFlows
             .sort((a, b) => Math.abs(b.net) - Math.abs(a.net))
             .slice(0, 3);
           
           sorted.forEach(tf => {
-            const netFormatted = (tf.net / 1e6).toFixed(2);
             const symbol = tf.mint.slice(0, 4) + '...' + tf.mint.slice(-4);
-            console.log(`      • ${symbol}: ${netFormatted > 0 ? '+' : ''}${netFormatted} tokens @ $${tf.currentPrice.toFixed(4)}`);
+            console.log(`      • ${symbol}: ${tf.net.toFixed(6)} tokens (no price)`);
           });
         }
 

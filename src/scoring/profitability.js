@@ -1,6 +1,11 @@
 /**
  * RPC-Native Profitability Calculator
  * Calculates PnL from Helius transaction data using on-chain balance changes
+ * 
+ * Uses Helius Enhanced API fields:
+ * - tokenTransfers: array of token transfers with fromUserAccount, toUserAccount, tokenAmount, mint
+ * - nativeTransfers: array of SOL transfers
+ * - accountData[].nativeBalanceChange: SOL balance change per account
  */
 
 const JUPITER_PRICE_API = 'https://api.jup.ag/price/v2';
@@ -86,7 +91,7 @@ class ProfitabilityCalculator {
 
   /**
    * Calculate profitability metrics from transaction history
-   * Uses on-chain balance changes + current prices
+   * Uses Helius Enhanced API tokenTransfers + accountData
    */
   async calculateProfitability(address, transactions) {
     const tokenFlows = {};      // { mint: { in: number, out: number, net: number } }
@@ -103,13 +108,13 @@ class ProfitabilityCalculator {
 
     // Process each transaction
     for (const tx of transactions) {
-      // Track native SOL changes
-      if (tx.nativeBalanceChanges) {
-        const walletChange = tx.nativeBalanceChanges.find(
-          bc => bc.account === address
+      // Track native SOL changes from accountData
+      if (tx.accountData) {
+        const walletAccount = tx.accountData.find(
+          ad => ad.account === address
         );
-        if (walletChange) {
-          const solAmount = walletChange.amount / 1e9;
+        if (walletAccount && walletAccount.nativeBalanceChange) {
+          const solAmount = walletAccount.nativeBalanceChange / 1e9;
           if (solAmount > 0) {
             solFlows.in += solAmount;
           } else {
@@ -118,23 +123,28 @@ class ProfitabilityCalculator {
         }
       }
 
-      // Track token transfers
-      if (tx.tokenBalanceChanges) {
-        for (const change of tx.tokenBalanceChanges) {
-          if (change.account !== address) continue;
-
-          const mint = change.mint;
-          const amount = Math.abs(change.amount);
-
+      // Track token transfers using tokenTransfers array
+      if (tx.tokenTransfers && Array.isArray(tx.tokenTransfers)) {
+        for (const transfer of tx.tokenTransfers) {
+          const mint = transfer.mint;
+          const amount = transfer.tokenAmount || 0;
+          
           if (!tokenFlows[mint]) {
             tokenFlows[mint] = { in: 0, out: 0, net: 0 };
           }
 
-          if (change.amount > 0) {
+          // Check if this wallet is sender or receiver
+          const isReceiver = transfer.toUserAccount === address;
+          const isSender = transfer.fromUserAccount === address;
+
+          if (isReceiver && !isSender) {
+            // Incoming transfer
             tokenFlows[mint].in += amount;
-          } else {
+          } else if (isSender && !isReceiver) {
+            // Outgoing transfer
             tokenFlows[mint].out += amount;
           }
+          // If both (self-transfer), skip or net to 0
 
           mints.add(mint);
         }
@@ -143,23 +153,23 @@ class ProfitabilityCalculator {
       // Detect Jupiter swaps
       const isJupiterSwap = tx.accountData?.some(
         ad => ad.account === JUPITER_V6
-      ) || tx.type === 'SWAP';
+      ) || tx.type === 'SWAP' || tx.description?.toLowerCase().includes('swap');
 
-      if (isJupiterSwap || tx.type === 'SWAP') {
+      if (isJupiterSwap) {
         swapMetrics.swapCount++;
-        if (tx.meta?.err) {
+        if (tx.transactionError) {
           swapMetrics.failedSwaps++;
         } else {
           swapMetrics.successfulSwaps++;
         }
         
-        // Estimate volume from token changes
-        if (tx.tokenBalanceChanges) {
-          const walletChanges = tx.tokenBalanceChanges.filter(
-            bc => bc.account === address
+        // Estimate volume from token transfers in this tx
+        if (tx.tokenTransfers) {
+          const walletTransfers = tx.tokenTransfers.filter(
+            tt => tt.fromUserAccount === address || tt.toUserAccount === address
           );
-          walletChanges.forEach(bc => {
-            swapMetrics.totalVolume += Math.abs(bc.amount);
+          walletTransfers.forEach(tt => {
+            swapMetrics.totalVolume += tt.tokenAmount || 0;
           });
         }
       }
@@ -171,42 +181,47 @@ class ProfitabilityCalculator {
       tokenFlows[mint].net = tokenFlows[mint].in - tokenFlows[mint].out;
     }
 
-    // Get current prices for all tokens
-    const prices = await this.getTokenPrices([...mints, 'So11111111111111111111111111111111111111112']);
+    // Get current prices for all tokens + SOL
+    const allMints = [...mints, 'So11111111111111111111111111111111111111112'];
+    const prices = await this.getTokenPrices(allMints);
     const solPrice = prices['So11111111111111111111111111111111111111112'] || 0;
 
-    // Calculate USD values
+    // Calculate USD values (best effort - requires price feed)
     let totalInflowValue = 0;
     let totalOutflowValue = 0;
     let currentPortfolioValue = 0;
     let tokenDiversity = 0;
+    let pricedTokenCount = 0;
+    const tokensWithPrices = [];
 
     for (const [mint, flow] of Object.entries(tokenFlows)) {
-      const decimals = this.getTokenDecimals(mint);
-      const normalizedIn = flow.in / Math.pow(10, decimals);
-      const normalizedOut = flow.out / Math.pow(10, decimals);
-      const normalizedNet = flow.net / Math.pow(10, decimals);
-      
+      // Helius tokenTransfers are already in human-readable units
       const price = prices[mint] || 0;
       
+      // Count diversity even if no price (we have the token)
+      tokenDiversity++;
+      
       if (price > 0) {
-        tokenDiversity++;
-        totalInflowValue += normalizedIn * price;
-        totalOutflowValue += normalizedOut * price;
-        currentPortfolioValue += normalizedNet * price;
+        pricedTokenCount++;
+        tokensWithPrices.push({ mint, flow, price });
+        totalInflowValue += flow.in * price;
+        totalOutflowValue += flow.out * price;
+        currentPortfolioValue += flow.net * price;
       }
     }
 
-    // Add SOL flows
-    totalInflowValue += solFlows.in * solPrice;
-    totalOutflowValue += solFlows.out * solPrice;
-    currentPortfolioValue += solFlows.net * solPrice;
+    // Add SOL flows if we have SOL price
+    if (solPrice > 0) {
+      totalInflowValue += solFlows.in * solPrice;
+      totalOutflowValue += solFlows.out * solPrice;
+      currentPortfolioValue += solFlows.net * solPrice;
+    }
 
-    // Calculate ROI
+    // Calculate ROI (if we have any priced tokens)
     const realizedPnL = totalInflowValue - totalOutflowValue;
     const roi = totalOutflowValue > 0 
       ? ((totalInflowValue - totalOutflowValue) / totalOutflowValue) * 100 
-      : 0;
+      : (pricedTokenCount > 0 && totalInflowValue > 0 ? 100 : 0); // 100% if only priced inflows
 
     // Calculate swap success rate
     const swapSuccessRate = swapMetrics.swapCount > 0
@@ -261,45 +276,67 @@ class ProfitabilityCalculator {
 
   /**
    * Calculate performance score from profitability (0-400)
+   * Works with or without price data
    */
   calculatePerformanceScore(profitability) {
     let score = 0;
     const { roi, swapMetrics, tokenDiversity, transactionCount } = profitability;
 
-    // ROI score (0-150)
-    if (roi > 100) score += 150;           // 100%+ return
-    else if (roi > 50) score += 120;       // 50-100%
-    else if (roi > 20) score += 100;       // 20-50%
-    else if (roi > 0) score += 80;          // 0-20%
-    else if (roi > -20) score += 50;       // -20-0%
-    else if (roi > -50) score += 20;        // -50--20%
-    else score += 0;                        // < -50%
+    // Check if we have price data
+    const hasPriceData = roi !== 0 || profitability.totalInflowValue > 0 || profitability.totalOutflowValue > 0;
 
-    // Swap success rate (0-100)
+    // ROI score (0-150) - only if price data available
+    if (hasPriceData) {
+      if (roi > 100) score += 150;           // 100%+ return
+      else if (roi > 50) score += 120;       // 50-100%
+      else if (roi > 20) score += 100;       // 20-50%
+      else if (roi > 0) score += 90;          // 0-20%
+      else if (roi > -20) score += 60;       // -20-0%
+      else if (roi > -50) score += 30;        // -50--20%
+      else score += 10;                        // < -50% (some participation)
+    } else {
+      // Without price data, allocate points to other categories
+      // Base participation score for having activity
+      score += 75;
+    }
+
+    // Swap success rate (0-120) - core metric, works without prices
     const { swapSuccessRate, swapCount } = swapMetrics;
     if (swapCount >= 10) {
-      if (swapSuccessRate >= 95) score += 100;
-      else if (swapSuccessRate >= 90) score += 80;
-      else if (swapSuccessRate >= 80) score += 60;
-      else if (swapSuccessRate >= 70) score += 40;
-      else score += 20;
+      if (swapSuccessRate >= 99) score += 120;      // Near perfect
+      else if (swapSuccessRate >= 95) score += 110;
+      else if (swapSuccessRate >= 90) score += 100;
+      else if (swapSuccessRate >= 80) score += 85;
+      else if (swapSuccessRate >= 70) score += 70;
+      else if (swapSuccessRate >= 50) score += 50;
+      else score += 30;
+    } else if (swapCount >= 5) {
+      // Moderate activity
+      score += swapSuccessRate >= 90 ? 80 : 60;
     } else if (swapCount > 0) {
-      score += 50; // Participation points for new traders
+      // Some swap activity
+      score += 40;
+    } else {
+      // No swaps - neutral
+      score += 20;
     }
 
     // Trading activity (0-100)
     if (transactionCount >= 500) score += 100;
-    else if (transactionCount >= 200) score += 80;
-    else if (transactionCount >= 100) score += 60;
-    else if (transactionCount >= 50) score += 40;
-    else if (transactionCount >= 10) score += 20;
-    else score += transactionCount * 2;
+    else if (transactionCount >= 200) score += 90;
+    else if (transactionCount >= 100) score += 80;
+    else if (transactionCount >= 50) score += 65;
+    else if (transactionCount >= 25) score += 50;
+    else if (transactionCount >= 10) score += 35;
+    else score += Math.max(10, transactionCount * 3);
 
-    // Token diversity (0-50)
-    if (tokenDiversity >= 10) score += 50;
+    // Token diversity (0-55)
+    if (tokenDiversity >= 20) score += 55;
+    else if (tokenDiversity >= 10) score += 50;
     else if (tokenDiversity >= 5) score += 40;
     else if (tokenDiversity >= 3) score += 30;
-    else score += tokenDiversity * 10;
+    else if (tokenDiversity >= 1) score += 20;
+    else score += 0;
 
     return Math.min(400, Math.max(0, score));
   }
