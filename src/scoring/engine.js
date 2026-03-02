@@ -15,11 +15,13 @@
 
 const { HeliusClient } = require('../api/helius');
 const { SuccessRateCalculator } = require('./success-rate');
+const { PatternDetector } = require('./pattern-detection');
 
 class ScoringEngine {
   constructor() {
     this.helius = new HeliusClient();
     this.successRateCalc = new SuccessRateCalculator();
+    this.patternDetector = new PatternDetector();
   }
 
   /**
@@ -72,11 +74,11 @@ class ScoringEngine {
   /**
    * Calculate security score (0-400)
    * Based on: transaction success rate (0-150), fee efficiency (0-100), 
-   * balance maintenance (0-75), activity span (0-75)
+   * balance maintenance (0-75), activity span (0-75), pattern deductions
    */
-  calculateSecurityScore(walletAnalysis) {
+  calculateSecurityScore(walletAnalysis, transactions = [], patterns = null) {
     let score = 0;
-    const { transactionCount, profitabilityIndicators, transactions } = walletAnalysis;
+    const { transactionCount, profitabilityIndicators } = walletAnalysis;
     
     // Transaction success rate (0-150 points) - NEW
     if (transactions && transactions.length > 0) {
@@ -109,7 +111,12 @@ class ScoringEngine {
     else if (ageInDays > 30) score += 45;
     else score += 30;
 
-    return Math.min(400, Math.max(0, score));
+    // Apply pattern detection deductions
+    if (patterns) {
+      score -= patterns.securityDeduction;
+    }
+
+    return Math.max(0, Math.min(400, score));
   }
 
   /**
@@ -187,7 +194,7 @@ class ScoringEngine {
    */
   async scoreWallet(address, options = {}) {
     try {
-      const { includeProfitability = false, txLimit = 100 } = options;
+      const { includeProfitability = false, txLimit = 100, includePatterns = true } = options;
       
       const analysisOptions = { 
         txLimit,
@@ -196,8 +203,17 @@ class ScoringEngine {
       
       const analysis = await this.helius.analyzeWallet(address, analysisOptions);
       
+      // Get raw transactions for pattern detection
+      let patterns = null;
+      let transactions = [];
+      if (includePatterns) {
+        const signatures = await this.helius.getTransactionSignatures(address, txLimit);
+        transactions = await this.helius.parseTransactions(signatures.map(s => s.signature));
+        patterns = this.patternDetector.detectPatterns(address, transactions, analysis.balance);
+      }
+      
       const performance = this.calculatePerformanceScore(analysis);
-      const security = this.calculateSecurityScore(analysis);
+      const security = this.calculateSecurityScore(analysis, transactions, patterns);
       const identity = this.calculateIdentityScore(analysis);
       
       const score = this.calculateTrustScore(performance, security, identity);
@@ -219,6 +235,15 @@ class ScoringEngine {
       // Include profitability data if requested
       if (includeProfitability && analysis.profitability) {
         result.profitability = analysis.profitability;
+      }
+      
+      // Include pattern analysis if requested
+      if (includePatterns && patterns) {
+        result.patterns = {
+          riskLevel: patterns.riskLevel,
+          securityDeduction: patterns.securityDeduction,
+          flags: patterns.riskFlags
+        };
       }
       
       return result;
