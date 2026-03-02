@@ -24,12 +24,14 @@ class ProfitabilityCalculator {
     try {
       const response = await fetch(`${JUPITER_PRICE_API}?ids=${mint}`);
       const data = await response.json();
-      const price = parseFloat(data.data[mint]?.price) || 0;
+      const priceData = data.data || {};
+      const tokenData = priceData[mint];
+      const price = tokenData && tokenData.price ? parseFloat(tokenData.price) : 0;
       
       this.priceCache.set(mint, { price, timestamp: Date.now() });
       return price;
     } catch (error) {
-      console.error(`Failed to fetch price for ${mint}:`, error);
+      console.error(`Failed to fetch price for ${mint}:`, error.message);
       return 0;
     }
   }
@@ -61,13 +63,21 @@ class ProfitabilityCalculator {
         const response = await fetch(`${JUPITER_PRICE_API}?ids=${batch.join(',')}`);
         const data = await response.json();
         
+        // Handle different response formats
+        const priceData = data.data || {};
+        
         batch.forEach(mint => {
-          const price = parseFloat(data.data[mint]?.price) || 0;
+          const tokenData = priceData[mint];
+          const price = tokenData && tokenData.price ? parseFloat(tokenData.price) : 0;
           prices[mint] = price;
           this.priceCache.set(mint, { price, timestamp: Date.now() });
         });
       } catch (error) {
-        console.error('Failed to fetch batch prices:', error);
+        console.error('Failed to fetch batch prices:', error.message);
+        // Set 0 price for failed batch
+        batch.forEach(mint => {
+          prices[mint] = 0;
+        });
       }
     }
 
