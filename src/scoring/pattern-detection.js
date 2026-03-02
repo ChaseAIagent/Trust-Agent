@@ -5,11 +5,21 @@
  */
 
 // Known exploit/malicious contracts (expandable database)
+const { MCPDetection } = require('./mcp-detection');
+
 const KNOWN_EXPLOIT_CONTRACTS = [
   '5HXs3QyN2NcdWgG3GymdVKdC2cRifkDpmZHMgKqB6yX7', // Example: fake Jupiter
   'Drift1111111111111111111111111111111111111', // Example placeholder
   // Add real exploit contracts as discovered
 ];
+
+// MCP-related program IDs (AI agent token deployment)
+const MCP_PROGRAMS = {
+  PRINTR: 'PRINTRxuF2KriZr7iC5ALd9vTgZBF4xVYU4eis5PnPc', // @printr MCP server
+  AGENT_LAUNCHERS: [
+    'AGENTxZ3mU1qS9tZ8xY7wV6U4eis5PnPc3mU1q', // Generic agent launchers
+  ]
+};
 
 // MEV-related program IDs
 const MEV_PROGRAMS = [
@@ -22,12 +32,13 @@ class PatternDetector {
     this.exploitContracts = new Set(KNOWN_EXPLOIT_CONTRACTS);
     this.mevPrograms = new Set(MEV_PROGRAMS);
     this.suspiciousPatterns = [];
+    this.mcpDetector = new MCPDetection();
   }
 
   /**
    * Analyze transactions for suspicious patterns
    */
-  detectPatterns(address, transactions, currentBalance) {
+  async detectPatterns(address, transactions, currentBalance, options = {}) {
     const patterns = {
       largeOutflows: this.detectLargeOutflows(address, transactions, currentBalance),
       exploitInteractions: this.detectExploitInteractions(transactions),
@@ -35,6 +46,7 @@ class PatternDetector {
       velocitySpikes: this.detectVelocitySpikes(transactions),
       concentrationRisk: this.detectConcentrationRisk(transactions),
       washTrading: this.detectWashTrading(transactions),
+      mcpThreats: await this.detectMCPThreats(address, transactions, options),
       timestamp: Date.now()
     };
 
@@ -232,6 +244,13 @@ class PatternDetector {
   }
 
   /**
+   * Detect MCP (AI agent) threats
+   */
+  async detectMCPThreats(address, transactions, options = {}) {
+    return await this.mcpDetector.detectMCPThreats(address, transactions, options);
+  }
+
+  /**
    * Detect sandwich attack pattern
    */
   detectSandwichPattern(swapGroup) {
@@ -420,6 +439,12 @@ class PatternDetector {
       deduction += Math.min(30, patterns.washTrading.washTradeCount * 10);
     }
 
+    // MCP threats (0-100 points - emerging AI risk)
+    if (patterns.mcpThreats && patterns.mcpThreats.threats.length > 0) {
+      const mcpDeduction = 100 - patterns.mcpThreats.mcpRiskScore;
+      deduction += Math.min(100, mcpDeduction);
+    }
+
     return Math.min(400, deduction);
   }
 
@@ -491,6 +516,39 @@ class PatternDetector {
         reason: 'Repetitive swap patterns detected',
         details: `${patterns.washTrading.washTradeCount} pair(s)`
       });
+    }
+
+    // MCP threats (AI agent risks)
+    if (patterns.mcpThreats && patterns.mcpThreats.threats.length > 0) {
+      const mcpSummary = patterns.mcpThreats.summary;
+      
+      if (mcpSummary.isMCPCreator) {
+        flags.push({
+          level: 'CRITICAL',
+          category: 'MCP Token Creator',
+          reason: 'Wallet has deployed tokens via AI agent MCP',
+          details: `${mcpSummary.mcpTokensCreated} MCP token(s) created`
+        });
+      }
+      
+      if (mcpSummary.tradesMCP) {
+        flags.push({
+          level: mcpSummary.isMCPCreator ? 'CRITICAL' : 'HIGH',
+          category: 'MCP Token Trader',
+          reason: 'Interacts with AI-deployed tokens',
+          details: `${mcpSummary.mcpTokensTraded} MCP token(s) traded`
+        });
+      }
+      
+      // Add specific MCP threat flags
+      for (const threat of patterns.mcpThreats.threats.slice(0, 3)) {
+        flags.push({
+          level: threat.level,
+          category: threat.category,
+          reason: threat.description,
+          details: threat.tokenAddress ? `Token: ${threat.tokenAddress.slice(0, 8)}...` : ''
+        });
+      }
     }
 
     return flags;

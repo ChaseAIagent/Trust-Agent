@@ -209,7 +209,7 @@ class ScoringEngine {
       if (includePatterns) {
         const signatures = await this.helius.getTransactionSignatures(address, txLimit);
         transactions = await this.helius.parseTransactions(signatures.map(s => s.signature));
-        patterns = this.patternDetector.detectPatterns(address, transactions, analysis.balance);
+        patterns = await this.patternDetector.detectPatterns(address, transactions, analysis.balance);
       }
       
       const performance = this.calculatePerformanceScore(analysis);
