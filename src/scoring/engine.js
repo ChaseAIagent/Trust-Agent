@@ -57,7 +57,7 @@ class ScoringEngine {
     else score += 20;
 
     // Account maturity (0-100 points)
-    const ageInDays = accountAge / (24 * 60 * 60);
+    const ageInDays = (accountAge || 0) / (24 * 60 * 60);
     if (ageInDays >= 365) score += 100;
     else if (ageInDays >= 180) score += 80;
     else if (ageInDays >= 90) score += 60;
@@ -105,7 +105,7 @@ class ScoringEngine {
     else score += 30;
 
     // Activity span (0-75)
-    const ageInDays = walletAnalysis.accountAge / (24 * 60 * 60);
+    const ageInDays = (walletAnalysis.accountAge || 0) / (24 * 60 * 60);
     if (ageInDays > 180) score += 75;
     else if (ageInDays > 90) score += 60;
     else if (ageInDays > 30) score += 45;
@@ -128,7 +128,7 @@ class ScoringEngine {
     const { accountAge, transactionCount, firstActivity, lastActivity } = walletAnalysis;
 
     // Account age (0-100)
-    const ageInDays = accountAge / (24 * 60 * 60);
+    const ageInDays = (accountAge || 0) / (24 * 60 * 60);
     if (ageInDays >= 730) score += 100; // 2+ years
     else if (ageInDays >= 365) score += 90;
     else if (ageInDays >= 180) score += 75;
@@ -138,7 +138,7 @@ class ScoringEngine {
 
     // Activity consistency (0-50)
     if (firstActivity && lastActivity) {
-      const span = lastActivity - firstActivity;
+      const span = (lastActivity || 0) - (firstActivity || 0);
       const spanInDays = span / (24 * 60 * 60);
       if (spanInDays > 30 && transactionCount > 10) score += 50;
       else if (spanInDays > 7) score += 30;

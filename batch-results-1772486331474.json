@@ -1,0 +1,152 @@
+{
+  "timestamp": "2026-03-02T21:18:51.474Z",
+  "duration": "33.8",
+  "totalWallets": 8,
+  "successful": 8,
+  "failed": 0,
+  "results": [
+    {
+      "address": "7gm6BPQrSBaTAYaJheuRevBNXcmKsgbkfBCVSjBnt9aP",
+      "name": "Warp Trading Bot",
+      "category": "ai_bot",
+      "expected": "medium_high",
+      "total": 580,
+      "performance": 315,
+      "security": 85,
+      "identity": 180,
+      "riskLevel": "MEDIUM",
+      "txCount": 75,
+      "flags": 4,
+      "flagDetails": [
+        "HIGH:MEV Attack",
+        "MEDIUM:Velocity Spike",
+        "MEDIUM:Concentration Risk",
+        "MEDIUM:Wash Trading"
+      ],
+      "success": true,
+      "error": null
+    },
+    {
+      "address": "GP1TLVRBVfn5RuAZfzqRFA9dTy8EfpE76rbzZ5u2Y1n2",
+      "name": "DeepSeek AI",
+      "category": "ai_bot",
+      "expected": "medium",
+      "total": 391,
+      "performance": 295,
+      "security": 30,
+      "identity": 66,
+      "riskLevel": "HIGH",
+      "txCount": 100,
+      "flags": 4,
+      "flagDetails": [
+        "HIGH:MEV Attack",
+        "MEDIUM:Velocity Spike",
+        "MEDIUM:Concentration Risk",
+        "MEDIUM:Wash Trading"
+      ],
+      "success": true,
+      "error": null
+    },
+    {
+      "address": "11111111111111111111111111111111",
+      "name": "System Program",
+      "category": "system",
+      "expected": "high_activity_no_tokens",
+      "total": 455,
+      "performance": 240,
+      "security": 150,
+      "identity": 65,
+      "riskLevel": "MEDIUM",
+      "txCount": 100,
+      "flags": 2,
+      "flagDetails": [
+        "HIGH:MEV Attack",
+        "MEDIUM:Wash Trading"
+      ],
+      "success": true,
+      "error": null
+    },
+    {
+      "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "name": "Token Program",
+      "category": "system",
+      "expected": "high_activity",
+      "total": 520,
+      "performance": 310,
+      "security": 145,
+      "identity": 65,
+      "riskLevel": "MEDIUM",
+      "txCount": 100,
+      "flags": 1,
+      "flagDetails": [
+        "HIGH:MEV Attack"
+      ],
+      "success": true,
+      "error": null
+    },
+    {
+      "address": "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZow5BAxZyFt",
+      "name": "Jupiter Aggregator",
+      "category": "protocol",
+      "expected": "high",
+      "total": 120,
+      "performance": 20,
+      "security": 100,
+      "identity": 0,
+      "riskLevel": "HIGH",
+      "txCount": 0,
+      "flags": 0,
+      "flagDetails": [],
+      "success": true,
+      "error": null
+    },
+    {
+      "address": "6EF8rrectkR5sYh9kj8mZ6fbGmfoK8Ns9Fs2f1yR2wA",
+      "name": "Raydium AMM",
+      "category": "protocol",
+      "expected": "high",
+      "total": 120,
+      "performance": 20,
+      "security": 100,
+      "identity": 0,
+      "riskLevel": "HIGH",
+      "txCount": 0,
+      "flags": 0,
+      "flagDetails": [],
+      "success": true,
+      "error": null
+    },
+    {
+      "address": "5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhNU5GhxoN9vG",
+      "name": "Jupiter Fee Vault",
+      "category": "treasury",
+      "expected": "high",
+      "total": 120,
+      "performance": 20,
+      "security": 100,
+      "identity": 0,
+      "riskLevel": "HIGH",
+      "txCount": 0,
+      "flags": 0,
+      "flagDetails": [],
+      "success": true,
+      "error": null
+    },
+    {
+      "address": "G5397j5n7GxeKzLvQ73e9tfZ8t7yP9rG5sTvU2wX3yZ5",
+      "name": "Fresh Wallet Test",
+      "category": "new",
+      "expected": "low",
+      "total": 120,
+      "performance": 20,
+      "security": 100,
+      "identity": 0,
+      "riskLevel": "HIGH",
+      "txCount": 0,
+      "flags": 0,
+      "flagDetails": [],
+      "success": true,
+      "error": null
+    }
+  ]
+}
