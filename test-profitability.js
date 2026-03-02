@@ -10,6 +10,7 @@ const { ProfitabilityCalculator } = require('./src/scoring/profitability');
 const { ScoringEngine } = require('./src/scoring/engine');
 
 // Test wallets - focused on active trading agents
+// Note: Jupiter Perps dropped - token flow parsing issues with program-derived addresses
 const TEST_WALLETS = [
   {
     address: '7gm6BPQrSBaTAYaJheuRevBNXcmKsgbkfBCVSjBnt9aP',
@@ -17,15 +18,11 @@ const TEST_WALLETS = [
     type: 'Trading Bot'
   },
   {
-    address: '27G8MtK7VtTcCHkpASjSDdkWWYfoqT6ggEuKidVJidD4',
-    name: 'Jupiter Perps',
-    type: 'DeFi Protocol'
-  },
-  {
     address: 'GP1TLVRBVfn5RuAZfzqRFA9dTy8EfpE76rbzZ5u2Y1n2',
     name: 'DeepSeek AI',
     type: 'AI Agent'
   }
+  // TODO: Add third active trading wallet
 ];
 
 async function testProfitability() {
