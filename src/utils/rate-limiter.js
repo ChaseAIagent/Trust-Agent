@@ -14,12 +14,25 @@
 
 class RateLimiter {
   constructor(options = {}) {
-    this.requests = new Map(); // ip/key -> { count, resetTime }
+    this.requests = new Map(); // ip/key -> { count, resetTime, totalUsed }
     this.blocked = new Set(); // Blocked IPs/keys
     this.tiers = {
-      free: { requests: 100, window: 24 * 60 * 60 * 1000 },      // 100/day
-      pro: { requests: 10000, window: 24 * 60 * 60 * 1000 },     // 10k/day
-      enterprise: { requests: 100000, window: 24 * 60 * 60 * 1000 } // 100k/day
+      // Free: 100 total lifetime + 10/day after that
+      free: { 
+        daily: 10, 
+        total: 100,
+        window: 24 * 60 * 60 * 1000 
+      },
+      // Pro: 5K/day with $50/month subscription
+      pro: { 
+        daily: 5000, 
+        window: 24 * 60 * 60 * 1000 
+      },
+      // Enterprise: Unlimited
+      enterprise: { 
+        daily: Infinity, 
+        window: 24 * 60 * 60 * 1000 
+      }
     };
     this.defaultTier = options.defaultTier || 'free';
     this.stats = {
@@ -62,27 +75,42 @@ class RateLimiter {
     if (!entry || now > entry.resetTime) {
       entry = {
         count: 0,
+        totalUsed: entry?.totalUsed || 0, // Preserve total across windows
         resetTime: now + config.window
       };
       this.requests.set(key, entry);
     }
 
-    // Check limit
-    if (entry.count >= config.requests) {
+    // Free tier: Check total lifetime limit first
+    if (effectiveTier === 'free' && config.total) {
+      if (entry.totalUsed >= config.total) {
+        return {
+          allowed: false,
+          reason: 'FREE_TIER_EXCEEDED',
+          message: `Free tier limit of ${config.total} scores reached. Upgrade to Pro.`,
+          upgradeUrl: '/pricing'
+        };
+      }
+    }
+
+    // Check daily limit
+    const limit = config.daily || config.requests;
+    if (entry.count >= limit) {
       const retryAfter = Math.ceil((entry.resetTime - now) / 1000);
       return {
         allowed: false,
         reason: 'RATE_LIMITED',
         retryAfter,
-        limit: config.requests,
+        limit: limit,
         remaining: 0
       };
     }
 
     return {
       allowed: true,
-      limit: config.requests,
-      remaining: config.requests - entry.count - 1,
+      limit: limit,
+      remaining: limit - entry.count - 1,
+      totalRemaining: effectiveTier === 'free' ? config.total - entry.totalUsed : Infinity,
       resetTime: entry.resetTime
     };
   }
@@ -97,6 +125,10 @@ class RateLimiter {
     let entry = this.requests.get(key);
     if (entry) {
       entry.count++;
+      // Track total lifetime usage for free tier
+      if (effectiveTier === 'free') {
+        entry.totalUsed = (entry.totalUsed || 0) + 1;
+      }
     }
     
     this.stats.totalRequests++;
