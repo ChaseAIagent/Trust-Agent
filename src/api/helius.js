@@ -127,6 +127,7 @@ class HeliusClient {
         lastActivity: null,
         transactionTypes: {},
         profitability: null,
+        successMetrics: null,
         transactions: []
       };
     }
@@ -158,6 +159,11 @@ class HeliusClient {
         console.error('Profitability calculation failed:', error);
       }
     }
+    
+    // Calculate success metrics
+    const { SuccessRateCalculator } = require('../scoring/success-rate');
+    const successCalc = new SuccessRateCalculator();
+    const successMetrics = successCalc.calculateSuccessMetrics(parsedTxs);
 
     return {
       address,
@@ -168,6 +174,7 @@ class HeliusClient {
       transactionTypes,
       accountAge: firstActivity ? Date.now() / 1000 - firstActivity : 0,
       profitability,
+      successMetrics,
       totalFees,
       feeEfficiency: signatures.length > 0 ? totalFees / signatures.length : 0,
       transactions: parsedTxs
