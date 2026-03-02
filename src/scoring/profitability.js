@@ -113,17 +113,42 @@ class ProfitabilityCalculator {
         const walletAccount = tx.accountData.find(
           ad => ad.account === address
         );
-        if (walletAccount && walletAccount.nativeBalanceChange) {
-          const solAmount = walletAccount.nativeBalanceChange / 1e9;
-          if (solAmount > 0) {
-            solFlows.in += solAmount;
-          } else {
-            solFlows.out += Math.abs(solAmount);
+        if (walletAccount) {
+          // Native SOL balance change
+          if (walletAccount.nativeBalanceChange) {
+            const solAmount = walletAccount.nativeBalanceChange / 1e9;
+            if (solAmount > 0) {
+              solFlows.in += solAmount;
+            } else {
+              solFlows.out += Math.abs(solAmount);
+            }
+          }
+          
+          // Token balance changes via accountData
+          if (walletAccount.tokenBalanceChanges && Array.isArray(walletAccount.tokenBalanceChanges)) {
+            for (const change of walletAccount.tokenBalanceChanges) {
+              const mint = change.mint;
+              const rawAmount = change.amount || 0;
+              const decimals = change.decimals || this.getTokenDecimals(mint);
+              const amount = rawAmount / Math.pow(10, decimals);
+              
+              if (!tokenFlows[mint]) {
+                tokenFlows[mint] = { in: 0, out: 0, net: 0 };
+              }
+
+              if (amount > 0) {
+                tokenFlows[mint].in += amount;
+              } else {
+                tokenFlows[mint].out += Math.abs(amount);
+              }
+              
+              mints.add(mint);
+            }
           }
         }
       }
 
-      // Track token transfers using tokenTransfers array
+      // Also track token transfers using tokenTransfers array (for direct transfers)
       if (tx.tokenTransfers && Array.isArray(tx.tokenTransfers)) {
         for (const transfer of tx.tokenTransfers) {
           const mint = transfer.mint;
@@ -140,13 +165,13 @@ class ProfitabilityCalculator {
           if (isReceiver && !isSender) {
             // Incoming transfer
             tokenFlows[mint].in += amount;
+            mints.add(mint);
           } else if (isSender && !isReceiver) {
             // Outgoing transfer
             tokenFlows[mint].out += amount;
+            mints.add(mint);
           }
           // If both (self-transfer), skip or net to 0
-
-          mints.add(mint);
         }
       }
 
