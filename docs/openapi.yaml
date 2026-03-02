@@ -1,0 +1,725 @@
+openapi: 3.0.3
+info:
+  title: AgentTrust Score Platform API
+  description: |
+    Trustless scoring API for Solana AI agents and wallets. 
+    Provides comprehensive trust scores, profitability analysis, and pattern detection 
+    for Solana wallet addresses using on-chain data from Helius Enhanced API.
+  version: 1.1.0
+  contact:
+    name: AgentTrust Support
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+  - url: https://api.agenttrust.io
+    description: Production server
+
+tags:
+  - name: Scoring
+    description: Wallet trust scoring endpoints
+  - name: Analysis
+    description: Detailed wallet analysis and profitability
+  - name: Batch
+    description: Batch operations for multiple wallets
+  - name: Meta
+    description: API metadata and test data
+
+paths:
+  /health:
+    get:
+      tags:
+        - Meta
+      summary: Health check
+      description: Returns API health status and version information
+      operationId: healthCheck
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /api/v1/score/{walletAddress}:
+    get:
+      tags:
+        - Scoring
+      summary: Get wallet trust score
+      description: |
+        Calculate trust score for a Solana wallet address.
+        Returns performance, security, and identity scores with detailed analysis.
+      operationId: getWalletScore
+      parameters:
+        - name: walletAddress
+          in: path
+          required: true
+          description: Solana wallet address (base58 encoded, 32-44 characters)
+          schema:
+            type: string
+            pattern: '^[1-9A-HJ-NP-Za-km-z]{32,44}$'
+            example: '7gm6BPQrSBaTAYaJheuRevBNXcmKsgbkfBCVSjBnt9aP'
+        - name: includeProfitability
+          in: query
+          required: false
+          description: Include detailed profitability analysis in response
+          schema:
+            type: string
+            enum: ['true', 'false']
+            default: 'false'
+      responses:
+        '200':
+          description: Successfully calculated trust score
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScoreResponse'
+        '400':
+          description: Invalid wallet address
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error or scoring failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/profitability/{walletAddress}:
+    get:
+      tags:
+        - Analysis
+      summary: Get wallet profitability analysis
+      description: |
+        Returns detailed profitability metrics including ROI, swap success rates,
+        token flows, and portfolio valuation. Requires price data from Jupiter API.
+      operationId: getProfitability
+      parameters:
+        - name: walletAddress
+          in: path
+          required: true
+          description: Solana wallet address
+          schema:
+            type: string
+            pattern: '^[1-9A-HJ-NP-Za-km-z]{32,44}$'
+            example: '7gm6BPQrSBaTAYaJheuRevBNXcmKsgbkfBCVSjBnt9aP'
+        - name: txLimit
+          in: query
+          required: false
+          description: Maximum number of transactions to analyze
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 100
+      responses:
+        '200':
+          description: Profitability analysis retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfitabilityResponse'
+        '400':
+          description: Invalid wallet address
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No profitability data available for this wallet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/score/batch:
+    post:
+      tags:
+        - Batch
+      summary: Score multiple wallets
+      description: |
+        Calculate trust scores for up to 10 wallet addresses in a single request.
+        Returns results in the same order as the input addresses array.
+      operationId: batchScore
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchScoreRequest'
+      responses:
+        '200':
+          description: Batch scoring completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchScoreResponse'
+        '400':
+          description: Invalid request (empty array, too many addresses, or malformed JSON)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/methodology:
+    get:
+      tags:
+        - Meta
+      summary: Get scoring methodology
+      description: |
+        Returns detailed documentation of the scoring algorithm, including
+        component weights, risk level thresholds, and data sources.
+      operationId: getMethodology
+      responses:
+        '200':
+          description: Methodology documentation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MethodologyResponse'
+
+  /api/v1/test-wallets:
+    get:
+      tags:
+        - Meta
+      summary: Get test wallet addresses
+      description: |
+        Returns a curated list of test wallet addresses with known profiles
+        for API testing and validation purposes.
+      operationId: getTestWallets
+      responses:
+        '200':
+          description: Test wallet list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestWalletsResponse'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: |
+        API key for authentication. Contact support to obtain an API key.
+        Include in request header: `X-API-Key: your_api_key_here`
+
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok]
+          example: ok
+        version:
+          type: string
+          example: '0.1.0'
+        service:
+          type: string
+          example: 'AgentTrust Score Platform'
+
+    ScoreResponse:
+      type: object
+      properties:
+        address:
+          type: string
+          description: The wallet address that was scored
+          example: '7gm6BPQrSBaTAYaJheuRevBNXcmKsgbkfBCVSjBnt9aP'
+        score:
+          type: object
+          properties:
+            total:
+              type: integer
+              minimum: 0
+              maximum: 1000
+              description: Combined trust score (0-1000)
+              example: 756
+            performance:
+              type: integer
+              minimum: 0
+              maximum: 400
+              description: Performance component score (0-400)
+              example: 320
+            security:
+              type: integer
+              minimum: 0
+              maximum: 400
+              description: Security component score (0-400)
+              example: 280
+            identity:
+              type: integer
+              minimum: 0
+              maximum: 200
+              description: Identity component score (0-200)
+              example: 156
+            riskLevel:
+              type: string
+              enum: [LOW, MEDIUM, HIGH]
+              description: Overall risk assessment
+              example: LOW
+            confidence:
+              type: string
+              enum: [LOW, MEDIUM, HIGH]
+              description: Confidence level based on data quality
+              example: HIGH
+        analysis:
+          type: object
+          properties:
+            balance:
+              type: number
+              description: Current SOL balance
+              example: 15.7
+            transactionCount:
+              type: integer
+              description: Total number of transactions analyzed
+              example: 342
+            accountAge:
+              type: number
+              description: Account age in seconds
+              example: 5184000
+            firstActivity:
+              type: integer
+              nullable: true
+              description: Unix timestamp of first transaction
+              example: 1672531200
+            lastActivity:
+              type: integer
+              nullable: true
+              description: Unix timestamp of last transaction
+              example: 1704067200
+            transactionTypes:
+              type: object
+              additionalProperties:
+                type: integer
+              description: Count of each transaction type
+              example:
+                SWAP: 150
+                TRANSFER: 120
+                UNKNOWN: 72
+        patterns:
+          type: object
+          nullable: true
+          properties:
+            riskLevel:
+              type: string
+              enum: [LOW, MEDIUM, HIGH, CRITICAL]
+              description: Pattern-based risk level
+            securityDeduction:
+              type: integer
+              description: Points deducted from security score
+              example: 25
+            flags:
+              type: array
+              items:
+                $ref: '#/components/schemas/RiskFlag'
+        profitability:
+          $ref: '#/components/schemas/ProfitabilityData'
+        timestamp:
+          type: integer
+          description: Unix timestamp when score was calculated
+          example: 1704067200000
+        error:
+          type: string
+          nullable: true
+          description: Error message if scoring failed
+
+    ProfitabilityResponse:
+      type: object
+      properties:
+        address:
+          type: string
+          example: '7gm6BPQrSBaTAYaJheuRevBNXcmKsgbkfBCVSjBnt9aP'
+        profitability:
+          $ref: '#/components/schemas/ProfitabilityData'
+        transactionCount:
+          type: integer
+          example: 342
+        firstActivity:
+          type: integer
+          nullable: true
+          example: 1672531200
+        lastActivity:
+          type: integer
+          nullable: true
+          example: 1704067200
+        timestamp:
+          type: integer
+          example: 1704067200000
+
+    ProfitabilityData:
+      type: object
+      properties:
+        totalInflowValue:
+          type: number
+          description: Total USD value of incoming transfers
+          example: 15000.5
+        totalOutflowValue:
+          type: number
+          description: Total USD value of outgoing transfers
+          example: 12500.0
+        realizedPnL:
+          type: number
+          description: Realized profit/loss in USD
+          example: 2500.5
+        currentPortfolioValue:
+          type: number
+          description: Current portfolio value in USD
+          example: 3200.75
+        roi:
+          type: number
+          description: Return on investment percentage
+          example: 20.0
+        solFlows:
+          type: object
+          properties:
+            in:
+              type: number
+              example: 100.5
+            out:
+              type: number
+              example: 85.2
+            net:
+              type: number
+              example: 15.3
+        tokenFlows:
+          type: array
+          items:
+            type: object
+            properties:
+              mint:
+                type: string
+                example: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
+              in:
+                type: number
+                example: 5000
+              out:
+                type: number
+                example: 3000
+              net:
+                type: number
+                example: 2000
+              currentPrice:
+                type: number
+                example: 1.0
+        swapMetrics:
+          type: object
+          properties:
+            swapCount:
+              type: integer
+              example: 150
+            successfulSwaps:
+              type: integer
+              example: 145
+            failedSwaps:
+              type: integer
+              example: 5
+            totalVolume:
+              type: number
+              example: 50000
+            swapSuccessRate:
+              type: number
+              example: 96.7
+        tokenDiversity:
+          type: integer
+          description: Number of unique tokens
+          example: 12
+        transactionCount:
+          type: integer
+          example: 342
+        avgTransactionValue:
+          type: number
+          example: 87.5
+
+    BatchScoreRequest:
+      type: object
+      required:
+        - addresses
+      properties:
+        addresses:
+          type: array
+          items:
+            type: string
+            pattern: '^[1-9A-HJ-NP-Za-km-z]{32,44}$'
+          minItems: 1
+          maxItems: 10
+          description: Array of Solana wallet addresses to score
+          example:
+            - '7gm6BPQrSBaTAYaJheuRevBNXcmKsgbkfBCVSjBnt9aP'
+            - 'GP1TLVRBVfn5RuAZfzqRFA9dTy8EfpE76rbzZ5u2Y1n2'
+
+    BatchScoreResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScoreResponse'
+        count:
+          type: integer
+          example: 2
+
+    MethodologyResponse:
+      type: object
+      properties:
+        name:
+          type: string
+          example: 'AgentTrust Score'
+        version:
+          type: string
+          example: '1.1'
+        total:
+          type: object
+          properties:
+            min:
+              type: integer
+              example: 0
+            max:
+              type: integer
+              example: 1000
+        components:
+          type: object
+          properties:
+            performance:
+              type: object
+              properties:
+                min:
+                  type: integer
+                  example: 0
+                max:
+                  type: integer
+                  example: 400
+                description:
+                  type: string
+                  example: 'Profitability, activity level, swap success rate, token diversity'
+                factors:
+                  type: object
+                  properties:
+                    roi:
+                      type: string
+                    swapSuccessRate:
+                      type: string
+                    transactionCount:
+                      type: string
+                    tokenDiversity:
+                      type: string
+            security:
+              type: object
+              properties:
+                min:
+                  type: integer
+                  example: 0
+                max:
+                  type: integer
+                  example: 400
+                description:
+                  type: string
+                  example: 'Fee efficiency, balance maintenance, activity span'
+            identity:
+              type: object
+              properties:
+                min:
+                  type: integer
+                  example: 0
+                max:
+                  type: integer
+                  example: 200
+                description:
+                  type: string
+                  example: 'Account age, activity patterns, consistency'
+        dataSources:
+          type: object
+          properties:
+            transactions:
+              type: string
+              example: 'Helius Enhanced API (on-chain data)'
+            prices:
+              type: string
+              example: 'Jupiter Price API (current market prices)'
+            swaps:
+              type: string
+              example: 'Jupiter Program parsing on-chain'
+        riskLevels:
+          type: object
+          properties:
+            HIGH:
+              type: object
+              properties:
+                range:
+                  type: string
+                  example: '0-399'
+                description:
+                  type: string
+                  example: 'High risk - limited activity or concerning patterns'
+            MEDIUM:
+              type: object
+              properties:
+                range:
+                  type: string
+                  example: '400-699'
+                description:
+                  type: string
+                  example: 'Medium risk - moderate activity, some history'
+            LOW:
+              type: object
+              properties:
+                range:
+                  type: string
+                  example: '700-1000'
+                description:
+                  type: string
+                  example: 'Low risk - established activity, good patterns'
+
+    TestWalletsResponse:
+      type: object
+      properties:
+        wallets:
+          type: array
+          items:
+            type: object
+            properties:
+              address:
+                type: string
+              name:
+                type: string
+              type:
+                type: string
+        count:
+          type: integer
+          example: 5
+
+    RiskFlag:
+      type: object
+      properties:
+        level:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+          description: Severity level of the risk flag
+          example: HIGH
+        category:
+          type: string
+          description: Category of risk detected
+          enum:
+            - Large Outflow
+            - Exploit Contract
+            - MEV Attack
+            - MEV Activity
+            - Velocity Spike
+            - Concentration Risk
+            - Wash Trading
+            - MCP Token Creator
+            - MCP Token Trader
+          example: Large Outflow
+        reason:
+          type: string
+          description: Human-readable explanation
+          example: Recent large balance withdrawal detected
+        details:
+          type: string
+          description: Additional details about the flag
+          example: 2 event(s) in last 24h
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+          example: 'Invalid wallet address'
+        address:
+          type: string
+          nullable: true
+          description: The address that caused the error (if applicable)
+          example: 'invalid-address'
+
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    RateLimit:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+security:
+  - ApiKeyAuth: []
+
+# Rate Limiting Information
+x-rate-limit:
+  description: |
+    Rate limits are enforced per API key:
+    - Single wallet scoring: 10 requests per second
+    - Batch scoring: 5 requests per minute (max 10 addresses per request)
+    - Profitability analysis: 5 requests per minute
+    
+    When rate limits are exceeded, the API returns HTTP 429 with a Retry-After header.
+  headers:
+    X-RateLimit-Limit:
+      description: Request limit per time window
+      schema:
+        type: integer
+    X-RateLimit-Remaining:
+      description: Remaining requests in current window
+      schema:
+        type: integer
+    X-RateLimit-Reset:
+      description: Unix timestamp when the rate limit resets
+      schema:
+        type: integer
+    Retry-After:
+      description: Seconds to wait before retrying (only on 429 responses)
+      schema:
+        type: integer
