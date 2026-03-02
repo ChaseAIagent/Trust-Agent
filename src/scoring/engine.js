@@ -14,10 +14,12 @@
  */
 
 const { HeliusClient } = require('../api/helius');
+const { SuccessRateCalculator } = require('./success-rate');
 
 class ScoringEngine {
   constructor() {
     this.helius = new HeliusClient();
+    this.successRateCalc = new SuccessRateCalculator();
   }
 
   /**
@@ -69,36 +71,43 @@ class ScoringEngine {
 
   /**
    * Calculate security score (0-400)
-   * Based on: transaction success rate, fee efficiency, risk patterns
+   * Based on: transaction success rate (0-150), fee efficiency (0-100), 
+   * balance maintenance (0-75), activity span (0-75)
    */
   calculateSecurityScore(walletAnalysis) {
     let score = 0;
-    const { transactionCount, profitabilityIndicators } = walletAnalysis;
+    const { transactionCount, profitabilityIndicators, transactions } = walletAnalysis;
     
-    // Base security for having activity (0-100)
-    if (transactionCount > 100) score += 100;
-    else score += transactionCount;
+    // Transaction success rate (0-150 points) - NEW
+    if (transactions && transactions.length > 0) {
+      const successMetrics = this.successRateCalc.calculateSuccessMetrics(transactions);
+      const successScore = this.successRateCalc.calculateSecurityScore(successMetrics);
+      score += successScore;
+    } else {
+      // Fallback: base activity score if no transaction data
+      score += Math.min(100, transactionCount / 2);
+    }
 
     // Fee efficiency (0-100)
-    const avgFee = profitabilityIndicators.feeEfficiency;
-    if (avgFee < 5000) score += 100; // Low average fees
+    const avgFee = profitabilityIndicators?.feeEfficiency || 20000;
+    if (avgFee < 5000) score += 100;
     else if (avgFee < 10000) score += 80;
     else if (avgFee < 20000) score += 60;
     else score += 40;
 
-    // Balance maintenance (0-100)
+    // Balance maintenance (0-75)
     const balance = walletAnalysis.balance;
-    if (balance > 1) score += 100;
-    else if (balance > 0.1) score += 80;
-    else if (balance > 0.01) score += 60;
-    else score += 40;
+    if (balance > 1) score += 75;
+    else if (balance > 0.1) score += 60;
+    else if (balance > 0.01) score += 45;
+    else score += 30;
 
-    // Activity span (0-100)
+    // Activity span (0-75)
     const ageInDays = walletAnalysis.accountAge / (24 * 60 * 60);
-    if (ageInDays > 180) score += 100;
-    else if (ageInDays > 90) score += 80;
-    else if (ageInDays > 30) score += 60;
-    else score += 40;
+    if (ageInDays > 180) score += 75;
+    else if (ageInDays > 90) score += 60;
+    else if (ageInDays > 30) score += 45;
+    else score += 30;
 
     return Math.min(400, Math.max(0, score));
   }
