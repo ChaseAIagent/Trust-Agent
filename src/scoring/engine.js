@@ -22,12 +22,20 @@ class ScoringEngine {
 
   /**
    * Calculate performance score (0-400)
-   * Based on: activity level, consistency, transaction diversity
+   * Based on: profitability, activity level, consistency, transaction diversity
    */
   calculatePerformanceScore(walletAnalysis) {
     let score = 0;
-    const { transactionCount, transactionTypes, accountAge } = walletAnalysis;
+    const { transactionCount, transactionTypes, accountAge, profitability } = walletAnalysis;
 
+    // Use profitability-based scoring if available (new method)
+    if (profitability) {
+      const { ProfitabilityCalculator } = require('./profitability');
+      const calc = new ProfitabilityCalculator(this.helius);
+      return calc.calculatePerformanceScore(profitability);
+    }
+
+    // Fallback: Legacy scoring method
     // Activity level (0-150 points)
     if (transactionCount >= 1000) score += 150;
     else if (transactionCount >= 500) score += 120;
@@ -170,7 +178,14 @@ class ScoringEngine {
    */
   async scoreWallet(address, options = {}) {
     try {
-      const analysis = await this.helius.analyzeWallet(address, options);
+      const { includeProfitability = false, txLimit = 100 } = options;
+      
+      const analysisOptions = { 
+        txLimit,
+        includeProfitability 
+      };
+      
+      const analysis = await this.helius.analyzeWallet(address, analysisOptions);
       
       const performance = this.calculatePerformanceScore(analysis);
       const security = this.calculateSecurityScore(analysis);
@@ -178,7 +193,7 @@ class ScoringEngine {
       
       const score = this.calculateTrustScore(performance, security, identity);
       
-      return {
+      const result = {
         address,
         score,
         analysis: {
@@ -191,6 +206,13 @@ class ScoringEngine {
         },
         timestamp: Date.now()
       };
+      
+      // Include profitability data if requested
+      if (includeProfitability && analysis.profitability) {
+        result.profitability = analysis.profitability;
+      }
+      
+      return result;
       
     } catch (error) {
       return {

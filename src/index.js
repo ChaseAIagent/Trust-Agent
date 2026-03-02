@@ -31,6 +31,7 @@ app.get('/health', (req, res) => {
 app.get('/api/v1/score/:walletAddress', async (req, res) => {
   try {
     const { walletAddress } = req.params;
+    const { includeProfitability = 'false' } = req.query;
     
     if (!walletAddress || walletAddress.length < 32) {
       return res.status(400).json({ 
@@ -39,7 +40,9 @@ app.get('/api/v1/score/:walletAddress', async (req, res) => {
       });
     }
 
-    const result = await engine.scoreWallet(walletAddress);
+    const result = await engine.scoreWallet(walletAddress, {
+      includeProfitability: includeProfitability === 'true'
+    });
     
     if (result.error) {
       return res.status(500).json({ 
@@ -49,6 +52,47 @@ app.get('/api/v1/score/:walletAddress', async (req, res) => {
     }
     
     res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get detailed profitability analysis
+app.get('/api/v1/profitability/:walletAddress', async (req, res) => {
+  try {
+    const { walletAddress } = req.params;
+    const { txLimit = 100 } = req.query;
+    
+    if (!walletAddress || walletAddress.length < 32) {
+      return res.status(400).json({ 
+        error: 'Invalid wallet address',
+        address: walletAddress 
+      });
+    }
+
+    const { HeliusClient } = require('./api/helius');
+    const helius = new HeliusClient();
+    
+    const analysis = await helius.analyzeWallet(walletAddress, {
+      txLimit: parseInt(txLimit),
+      includeProfitability: true
+    });
+
+    if (!analysis.profitability) {
+      return res.status(404).json({
+        error: 'No profitability data available',
+        address: walletAddress
+      });
+    }
+
+    res.json({
+      address: walletAddress,
+      profitability: analysis.profitability,
+      transactionCount: analysis.transactionCount,
+      firstActivity: analysis.firstActivity,
+      lastActivity: analysis.lastActivity,
+      timestamp: Date.now()
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -84,12 +128,27 @@ app.post('/api/v1/score/batch', async (req, res) => {
 app.get('/api/v1/methodology', (req, res) => {
   res.json({
     name: 'AgentTrust Score',
-    version: '1.0',
+    version: '1.1',
     total: { min: 0, max: 1000 },
     components: {
-      performance: { min: 0, max: 400, description: 'Activity level, consistency, transaction diversity' },
+      performance: { 
+        min: 0, 
+        max: 400, 
+        description: 'Profitability, activity level, swap success rate, token diversity',
+        factors: {
+          roi: 'Return on investment from tracked transactions',
+          swapSuccessRate: 'Percentage of successful Jupiter swaps',
+          transactionCount: 'Total transaction volume and frequency',
+          tokenDiversity: 'Number of unique tokens held/traded'
+        }
+      },
       security: { min: 0, max: 400, description: 'Fee efficiency, balance maintenance, activity span' },
       identity: { min: 0, max: 200, description: 'Account age, activity patterns, consistency' }
+    },
+    dataSources: {
+      transactions: 'Helius Enhanced API (on-chain data)',
+      prices: 'Jupiter Price API (current market prices)',
+      swaps: 'Jupiter Program parsing on-chain'
     },
     riskLevels: {
       HIGH: { range: '0-399', description: 'High risk - limited activity or concerning patterns' },

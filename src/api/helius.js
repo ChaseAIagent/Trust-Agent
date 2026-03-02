@@ -3,6 +3,8 @@
  * Provides transaction history, parsing, and wallet analysis
  */
 
+const { ProfitabilityCalculator } = require('../scoring/profitability');
+
 const HELIUS_RPC_URL = process.env.HELIUS_RPC_URL || 'https://mainnet.helius-rpc.com/';
 const HELIUS_API_KEY = process.env.HELIUS_API_KEY;
 
@@ -15,6 +17,7 @@ class HeliusClient {
       ? HELIUS_RPC_URL 
       : `${HELIUS_RPC_URL}?api-key=${HELIUS_API_KEY}`;
     this.apiUrl = `https://api-mainnet.helius-rpc.com/v0`;
+    this.profitabilityCalc = new ProfitabilityCalculator(this);
   }
 
   /**
@@ -105,10 +108,10 @@ class HeliusClient {
 
   /**
    * Get wallet analysis for scoring
-   * Returns key metrics: balance, tx count, types, profitability indicators
+   * Returns key metrics: balance, tx count, types, profitability analysis
    */
   async analyzeWallet(address, options = {}) {
-    const { txLimit = 100 } = options;
+    const { txLimit = 100, includeProfitability = true } = options;
     
     const [balance, signatures] = await Promise.all([
       this.getBalance(address),
@@ -123,12 +126,8 @@ class HeliusClient {
         firstActivity: null,
         lastActivity: null,
         transactionTypes: {},
-        profitabilityIndicators: {
-          netFlow: 0,
-          inflows: 0,
-          outflows: 0,
-          fees: 0
-        }
+        profitability: null,
+        transactions: []
       };
     }
 
@@ -142,24 +141,23 @@ class HeliusClient {
     
     // Transaction type analysis
     const transactionTypes = {};
-    let inflows = 0;
-    let outflows = 0;
-    let fees = 0;
+    let totalFees = 0;
 
     parsedTxs.forEach(tx => {
       const type = tx.type || 'UNKNOWN';
       transactionTypes[type] = (transactionTypes[type] || 0) + 1;
-      
-      // Sum fees
-      if (tx.fee) fees += tx.fee;
-      
-      // Track token transfers for profitability
-      if (tx.tokenTransfers) {
-        tx.tokenTransfers.forEach(tt => {
-          // Simplified - would need token prices for real profitability
-        });
-      }
+      if (tx.fee) totalFees += tx.fee;
     });
+
+    // Calculate profitability if requested
+    let profitability = null;
+    if (includeProfitability) {
+      try {
+        profitability = await this.profitabilityCalc.calculateProfitability(address, parsedTxs);
+      } catch (error) {
+        console.error('Profitability calculation failed:', error);
+      }
+    }
 
     return {
       address,
@@ -169,13 +167,10 @@ class HeliusClient {
       lastActivity,
       transactionTypes,
       accountAge: firstActivity ? Date.now() / 1000 - firstActivity : 0,
-      profitabilityIndicators: {
-        inflows,
-        outflows,
-        netFlow: inflows - outflows,
-        fees,
-        feeEfficiency: signatures.length > 0 ? fees / signatures.length : 0
-      }
+      profitability,
+      totalFees,
+      feeEfficiency: signatures.length > 0 ? totalFees / signatures.length : 0,
+      transactions: parsedTxs
     };
   }
 }
