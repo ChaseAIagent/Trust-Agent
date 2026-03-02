@@ -1,0 +1,34 @@
+{
+  "testWallets": [
+    {
+      "name": "Solana Agent Kit Treasury",
+      "address": "EKHTbXpsm6YDgJzMkFxNU1LNXeWcUW7Ezf8mjUNQQ4Pa",
+      "type": "DAO Treasury",
+      "source": "sendaifun/solana-agent-kit"
+    },
+    {
+      "name": "Warp Trading Bot (Tip Wallet)",
+      "address": "7gm6BPQrSBaTAYaJheuRevBNXcmKsgbkfBCVSjBnt9aP",
+      "type": "Trading Bot",
+      "source": "warp-id/solana-trading-bot"
+    },
+    {
+      "name": "Jupiter Perps",
+      "address": "27G8MtK7VtTcCHkpASjSDdkWWYfoqT6ggEuKidVJidD4",
+      "type": "DeFi Protocol",
+      "source": "Solana Explorer"
+    },
+    {
+      "name": "Helius Example",
+      "address": "86xCnPeV69n6t3DnyGvkKobf9FdN2H9oiVDdaMpo2MMY",
+      "type": "Example/Test",
+      "source": "Helius Tutorial"
+    },
+    {
+      "name": "DeepSeek AI Agent",
+      "address": "GP1TLVRBVfn5RuAZfzqRFA9dTy8EfpE76rbzZ5u2Y1n2",
+      "type": "AI Agent",
+      "source": "Helius Blog"
+    }
+  ]
+}
