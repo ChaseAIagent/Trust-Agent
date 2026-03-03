@@ -12,7 +12,7 @@ curl "https://api.agenttrust.io/api/v1/score/{wallet_address}?tier=free"
 - Basic trust scoring
 - 10 requests/day after initial 100
 
-**Pro Tier ($50/month via x402):**
+**Pro Tier ($15/month via x402):**
 ```bash
 # Includes MCP detection + 5K scores/day
 curl "https://api.agenttrust.io/api/v1/score/{wallet_address}?tier=pro" \

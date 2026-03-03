@@ -9,7 +9,7 @@
 - Rate limit: 10 requests/day after initial 100
 - **Perfect for**: Testing, individual traders, small bots
 
-### Pro Tier - $50/month
+### Pro Tier - $15/month
 - **5,000 scores/day** (~150K/month)
 - Everything in Free, plus:
   - **MCP Threat Detection** (AI agent token deployment detection)
@@ -17,6 +17,7 @@
   - Higher rate limits
 - **Payment**: USDC on Solana via x402 protocol
 - **Perfect for**: AI agent developers, trading firms, dApps
+- **Founding User Price**: Lock in $15 forever (limited time)
 
 ---
 
@@ -40,7 +41,7 @@ Instead of traditional subscription:
 | Tool | Price | Wallet Scoring | MCP Detection | Payment |
 |------|-------|---------------|---------------|---------|
 | **AgentTrust Free** | $0 | ✅ | ❌ | N/A |
-| **AgentTrust Pro** | $50/mo | ✅ | ✅ | USDC/x402 |
+| **AgentTrust Pro** | $15/mo | ✅ | ✅ | USDC/x402 |
 | Nansen | $49/mo | ❌ (token only) | ❌ | Credit card |
 | RugCheck | $0 | ❌ (token only) | ❌ | N/A |
 | Bubblemaps | $79/mo | ❌ | ❌ | Credit card |
