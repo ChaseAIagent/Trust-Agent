@@ -1,0 +1,105 @@
+{
+  "results": [
+    {
+      "address": "4cSvhQWYomj5i5utYK2fgHJUTKa7TskR9FMzhf7D6DoA",
+      "category": "user_provided_1",
+      "score": {
+        "total": 367,
+        "performance": 171,
+        "security": 130,
+        "identity": 66,
+        "riskLevel": "HIGH",
+        "confidence": "LOW"
+      },
+      "duration": 5.8,
+      "riskLevel": "MEDIUM",
+      "flags": 3,
+      "breakdown": {
+        "performance": 171,
+        "security": 130,
+        "identity": 66
+      }
+    },
+    {
+      "address": "FonDhhZjC6MgfxuFmkhuDKE1TSdLV49BZGMGTDEhyC86",
+      "category": "user_provided_2",
+      "score": {
+        "total": 417,
+        "performance": 255,
+        "security": 50,
+        "identity": 112,
+        "riskLevel": "MEDIUM",
+        "confidence": "LOW"
+      },
+      "duration": 3.8,
+      "riskLevel": "HIGH",
+      "flags": 2,
+      "breakdown": {
+        "performance": 255,
+        "security": 50,
+        "identity": 112
+      }
+    },
+    {
+      "address": "tYGCfzdZTXEkG9rvbxUH8f8AgGmPRNDdMPkR1ERcCu8",
+      "category": "user_provided_3",
+      "score": {
+        "total": 249,
+        "performance": 174,
+        "security": 5,
+        "identity": 70,
+        "riskLevel": "HIGH",
+        "confidence": "LOW"
+      },
+      "duration": 3,
+      "riskLevel": "CRITICAL",
+      "flags": 4,
+      "breakdown": {
+        "performance": 174,
+        "security": 5,
+        "identity": 70
+      }
+    },
+    {
+      "address": "8seyM3fSjwifWe59mpW8LeH2FSuBNbZVaqbvRddPAqrK",
+      "category": "user_provided_4",
+      "score": {
+        "total": 257,
+        "performance": 191,
+        "security": 0,
+        "identity": 66,
+        "riskLevel": "HIGH",
+        "confidence": "LOW"
+      },
+      "duration": 2.7,
+      "riskLevel": "CRITICAL",
+      "flags": 4,
+      "breakdown": {
+        "performance": 191,
+        "security": 0,
+        "identity": 66
+      }
+    },
+    {
+      "address": "77G5SpvcrZehWyQfH6E9K2pnWivD3iAKD5frVFL22UQk",
+      "category": "user_provided_5",
+      "score": {
+        "total": 340,
+        "performance": 210,
+        "security": 65,
+        "identity": 65,
+        "riskLevel": "HIGH",
+        "confidence": "LOW"
+      },
+      "duration": 2.8,
+      "riskLevel": "CRITICAL",
+      "flags": 3,
+      "breakdown": {
+        "performance": 210,
+        "security": 65,
+        "identity": 65
+      }
+    }
+  ],
+  "timestamp": "2026-03-03T00:39:35.274Z"
+}

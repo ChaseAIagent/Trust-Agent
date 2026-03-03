@@ -1,0 +1,30 @@
+{
+  "results": [
+    {
+      "address": "4cSvhQWYomj5i5utYK2fgHJUTKa7TskR9FMzhf7D6DoA",
+      "category": "user_provided_1",
+      "error": "engine.calculateWalletScore is not a function"
+    },
+    {
+      "address": "FonDhhZjC6MgfxuFmkhuDKE1TSdLV49BZGMGTDEhyC86",
+      "category": "user_provided_2",
+      "error": "engine.calculateWalletScore is not a function"
+    },
+    {
+      "address": "tYGCfzdZTXEkG9rvbxUH8f8AgGmPRNDdMPkR1ERcCu8",
+      "category": "user_provided_3",
+      "error": "engine.calculateWalletScore is not a function"
+    },
+    {
+      "address": "8seyM3fSjwifWe59mpW8LeH2FSuBNbZVaqbvRddPAqrK",
+      "category": "user_provided_4",
+      "error": "engine.calculateWalletScore is not a function"
+    },
+    {
+      "address": "77G5SpvcrZehWyQfH6E9K2pnWivD3iAKD5frVFL22UQk",
+      "category": "user_provided_5",
+      "error": "engine.calculateWalletScore is not a function"
+    }
+  ],
+  "timestamp": "2026-03-03T00:38:49.908Z"
+}
